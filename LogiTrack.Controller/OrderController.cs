@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using LogiTrack.Model;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,7 +23,13 @@ namespace LogiTrack.Controller
     [ProducesResponseType(typeof(IEnumerable<Order>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<Order>>> GetAll()
     {
-      var orders = await _context.Orders.Include(o => o.Items).ToListAsync();
+      var sw = Stopwatch.StartNew();
+      var orders = await _context.Orders
+        .AsNoTracking()
+        .Include(o => o.Items)
+        .ToListAsync();
+      sw.Stop();
+      Response.Headers["X-Response-Time-Ms"] = sw.ElapsedMilliseconds.ToString();
       return Ok(orders);
     }
 
@@ -32,6 +39,7 @@ namespace LogiTrack.Controller
     public async Task<ActionResult<Order>> GetById(int id)
     {
       var order = await _context.Orders
+        .AsNoTracking()
         .Include(o => o.Items)
         .FirstOrDefaultAsync(o => o.OrderId == id);
 
@@ -46,14 +54,20 @@ namespace LogiTrack.Controller
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<IEnumerable<InventoryItem>>> GetItems(int id)
     {
-      var order = await _context.Orders
-        .Include(o => o.Items)
-        .FirstOrDefaultAsync(o => o.OrderId == id);
+      // Query items directly — avoids loading the full Order entity
+      var items = await _context.InventoryItems
+        .AsNoTracking()
+        .Where(i => i.OrderId == id)
+        .ToListAsync();
 
-      if (order is null)
-        return NotFound(new { message = $"Order with ID {id} was not found." });
+      if (!items.Any())
+      {
+        var exists = await _context.Orders.AnyAsync(o => o.OrderId == id);
+        if (!exists)
+          return NotFound(new { message = $"Order with ID {id} was not found." });
+      }
 
-      return Ok(order.Items);
+      return Ok(items);
     }
 
     [HttpPost]

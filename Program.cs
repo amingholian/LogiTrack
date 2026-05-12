@@ -11,6 +11,7 @@ builder.Services.AddControllers();
 builder.Services.AddDbContext<LogiTrackContext>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddMemoryCache();
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
   .AddEntityFrameworkStores<LogiTrackContext>()
   .AddDefaultTokenProviders();

@@ -1,7 +1,9 @@
+using System.Diagnostics;
 using LogiTrack.Model;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace LogiTrack.Controller
 {
@@ -11,18 +13,41 @@ namespace LogiTrack.Controller
   [Authorize]
   public class InventoryController : ControllerBase
   {
-    private readonly LogiTrackContext _context;
+    private const string CacheKey = "inventory_all";
+    private static readonly TimeSpan CacheDuration = TimeSpan.FromSeconds(30);
 
-    public InventoryController(LogiTrackContext context)
+    private readonly LogiTrackContext _context;
+    private readonly IMemoryCache _cache;
+
+    public InventoryController(LogiTrackContext context, IMemoryCache cache)
     {
       _context = context;
+      _cache = cache;
     }
 
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<InventoryItem>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<InventoryItem>>> GetAll()
     {
-      var items = await _context.InventoryItems.ToListAsync();
+      var sw = Stopwatch.StartNew();
+
+      if (!_cache.TryGetValue(CacheKey, out List<InventoryItem>? items))
+      {
+        items = await _context.InventoryItems
+          .AsNoTracking()
+          .ToListAsync();
+
+        _cache.Set(CacheKey, items, CacheDuration);
+        Response.Headers["X-Cache"] = "MISS";
+      }
+      else
+      {
+        Response.Headers["X-Cache"] = "HIT";
+      }
+
+      sw.Stop();
+      Response.Headers["X-Response-Time-Ms"] = sw.ElapsedMilliseconds.ToString();
+
       return Ok(items);
     }
 
@@ -35,6 +60,7 @@ namespace LogiTrack.Controller
     {
       _context.InventoryItems.Add(item);
       await _context.SaveChangesAsync();
+      _cache.Remove(CacheKey);
       return CreatedAtAction(nameof(GetAll), new { id = item.ItemId }, item);
     }
 
@@ -52,6 +78,7 @@ namespace LogiTrack.Controller
 
       _context.InventoryItems.Remove(item);
       await _context.SaveChangesAsync();
+      _cache.Remove(CacheKey);
       return NoContent();
     }
   }
