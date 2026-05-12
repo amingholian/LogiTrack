@@ -78,6 +78,7 @@ namespace LogiTrack.Controller
     public async Task<ActionResult<Order>> Create([FromBody] Order order)
     {
       order.DatePlaced = DateTime.UtcNow;
+      order.CreatedByUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
       if (order.Items is { Count: > 0 })
       {
