@@ -1,4 +1,5 @@
 using LogiTrack.Model;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,6 +8,7 @@ namespace LogiTrack.Controller
   [ApiController]
   [Route("api/orders")]
   [Produces("application/json")]
+  [Authorize]
   public class OrderController : ControllerBase
   {
     private readonly LogiTrackContext _context;
@@ -55,8 +57,10 @@ namespace LogiTrack.Controller
     }
 
     [HttpPost]
+    [Authorize(Roles = "Manager")]
     [ProducesResponseType(typeof(Order), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<Order>> Create([FromBody] Order order)
     {
       order.DatePlaced = DateTime.UtcNow;
@@ -75,8 +79,10 @@ namespace LogiTrack.Controller
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Manager")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> Delete(int id)
     {
       var order = await _context.Orders.FindAsync(id);

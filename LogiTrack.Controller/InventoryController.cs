@@ -1,4 +1,5 @@
 using LogiTrack.Model;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,6 +8,7 @@ namespace LogiTrack.Controller
   [ApiController]
   [Route("api/inventory")]
   [Produces("application/json")]
+  [Authorize]
   public class InventoryController : ControllerBase
   {
     private readonly LogiTrackContext _context;
@@ -25,8 +27,10 @@ namespace LogiTrack.Controller
     }
 
     [HttpPost]
+    [Authorize(Roles = "Manager")]
     [ProducesResponseType(typeof(InventoryItem), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<InventoryItem>> Create([FromBody] InventoryItem item)
     {
       _context.InventoryItems.Add(item);
@@ -35,8 +39,10 @@ namespace LogiTrack.Controller
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Manager")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> Delete(int id)
     {
       var item = await _context.InventoryItems.FindAsync(id);
